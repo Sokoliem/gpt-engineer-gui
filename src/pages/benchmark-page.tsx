@@ -4,7 +4,13 @@ import { BenchmarkResults, BenchmarkResult } from '@/components/benchmark/benchm
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Sliders } from 'lucide-react';
+import { ModelParametersDialog } from '@/components/settings/model-parameters-dialog';
 import { benchmarkService } from '@/services/benchmark-service';
+import { useModelParametersStore } from '@/store/model-parameters-store';
+import { logger } from '@/services/logging-service';
+import { notifier } from '@/services/notification-service';
 
 export function BenchmarkPage() {
   const [selectedBenchmark, setSelectedBenchmark] = useState<Benchmark | null>(null);
@@ -15,6 +21,8 @@ export function BenchmarkPage() {
   const [results, setResults] = useState<BenchmarkResult[]>([]);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
+  const [showParametersDialog, setShowParametersDialog] = useState(false);
+  const { getParameters } = useModelParametersStore();
   
   const handleBenchmarkSelect = (benchmark: Benchmark) => {
     setSelectedBenchmark(benchmark);
@@ -22,7 +30,7 @@ export function BenchmarkPage() {
   
   const handleRunBenchmark = async (benchmark: Benchmark, options: any) => {
     if (!apiKey) {
-      alert('Please enter your API key');
+      notifier.error('API Key Required', 'Please enter your API key');
       return;
     }
     
@@ -32,22 +40,41 @@ export function BenchmarkPage() {
     setStartTime(new Date());
     setEndTime(null);
     
+    logger.info(`Starting benchmark: ${benchmark.name}`, { model, taskCount: options.taskCount }, 'Benchmark');
+    
     try {
+      // Get model parameters
+      const modelParameters = getParameters(model);
+      
       await benchmarkService.runBenchmark(
         benchmark.id,
         {
           model,
           apiKey,
           taskCount: options.taskCount,
+          modelParameters,
         },
         (progress, result) => {
           setProgress(progress * 100);
           if (result) {
             setResults(prev => [...prev, result]);
+            logger.info(`Completed task: ${result.taskName}`, { 
+              success: result.success, 
+              executionTime: result.executionTime 
+            }, 'Benchmark');
           }
         }
       );
+      
+      notifier.success('Benchmark Complete', `Completed ${options.taskCount} tasks for ${benchmark.name}`);
+      logger.info(`Benchmark completed: ${benchmark.name}`, { 
+        taskCount: options.taskCount,
+        successRate: results.filter(r => r.success).length / results.length
+      }, 'Benchmark');
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      notifier.error('Benchmark Failed', errorMessage);
+      logger.error('Benchmark failed', { error: errorMessage }, 'Benchmark');
       console.error('Benchmark error:', error);
     } finally {
       setIsRunning(false);
@@ -79,16 +106,26 @@ export function BenchmarkPage() {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Model</label>
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="gpt-4">GPT-4</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                    <option value="claude-3-opus">Claude 3 Opus</option>
-                    <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="gpt-4">GPT-4</option>
+                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                      <option value="claude-3-opus">Claude 3 Opus</option>
+                      <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                    </select>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => setShowParametersDialog(true)}
+                      title="Model Parameters"
+                    >
+                      <Sliders className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 
                 <BenchmarkSelector
@@ -169,6 +206,12 @@ export function BenchmarkPage() {
           )}
         </div>
       </div>
+      
+      <ModelParametersDialog
+        open={showParametersDialog}
+        onOpenChange={setShowParametersDialog}
+        model={model}
+      />
     </div>
   );
 }

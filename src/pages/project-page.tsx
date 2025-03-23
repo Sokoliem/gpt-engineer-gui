@@ -3,17 +3,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Play, Save, FileCode, Settings, FolderTree, GitCompare, BookTemplate, Clock } from 'lucide-react';
+import { Play, Save, FileCode, Settings, FolderTree, GitCompare, BookTemplate, Clock, Sliders } from 'lucide-react';
 import { CodeEditor } from '@/components/editor/code-editor';
 import { DiffViewer } from '@/components/editor/diff-viewer';
 import { FileExplorer } from '@/components/file/file-explorer';
 import { CodeSearch } from '@/components/editor/code-search';
 import { PromptTemplates } from '@/components/prompt/prompt-templates';
 import { PromptHistory } from '@/components/prompt/prompt-history';
+import { ModelParametersDialog } from '@/components/settings/model-parameters-dialog';
 import { useParams } from 'react-router-dom';
 import { useProjectStore } from '@/store/project-store';
 import { usePromptStore } from '@/store/prompt-store';
+import { useModelParametersStore } from '@/store/model-parameters-store';
 import { gptEngineerService } from '@/services/gpt-engineer-service';
+import { logger } from '@/services/logging-service';
+import { notifier } from '@/services/notification-service';
 
 // Helper function to convert flat file list to tree structure
 function buildFileTree(files: Array<{ path: string; content: string }>) {
@@ -57,6 +61,7 @@ export function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const { projects, updateProject } = useProjectStore();
   const { templates, history, addTemplate, updateTemplate, deleteTemplate, addHistoryEntry } = usePromptStore();
+  const { getParameters } = useModelParametersStore();
   
   const project = projects.find(p => p.id === id) || {
     id: 'new',
@@ -89,6 +94,7 @@ export function ProjectPage() {
   const [searchResults, setSearchResults] = useState<number>(0);
   const [currentSearchResult, setCurrentSearchResult] = useState<number>(0);
   const [promptTab, setPromptTab] = useState<'editor' | 'templates' | 'history'>('editor');
+  const [showParametersDialog, setShowParametersDialog] = useState(false);
   
   const fileTree = buildFileTree(generatedFiles);
   
@@ -105,6 +111,8 @@ export function ProjectPage() {
   
   const handleRun = async () => {
     setIsRunning(true);
+    logger.info(`Running project "${projectName}" with model ${model}`, { improveMode }, 'Project');
+    
     try {
       // Store original files for diff view if in improve mode
       if (improveMode) {
@@ -118,11 +126,15 @@ export function ProjectPage() {
         projectName: projectName,
       });
       
+      // Get model parameters
+      const modelParameters = getParameters(model);
+      
       const result = await gptEngineerService.runProject({
         prompt,
         model,
         apiKey,
         improveMode,
+        modelParameters,
       });
       
       if (result.success) {
@@ -134,15 +146,25 @@ export function ProjectPage() {
           output: result.output,
           generatedFiles: result.files,
         });
+        
+        notifier.success('Project Generated', 'Code generation completed successfully');
+        logger.info('Code generation completed', { fileCount: result.files?.length || 0 }, 'Project');
       } else {
         setOutput(`Error: ${result.error}`);
+        notifier.error('Generation Failed', result.error || 'An unknown error occurred');
+        logger.error('Code generation failed', { error: result.error }, 'Project');
       }
     } catch (error) {
-      setOutput(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setOutput(`Error: ${errorMessage}`);
+      notifier.error('Generation Failed', errorMessage);
+      logger.error('Code generation failed', { error: errorMessage }, 'Project');
     } finally {
       setIsRunning(false);
     }
-  };const handleSave = () => {
+  };
+
+  const handleSave = () => {
     updateProject(project.id, {
       name: projectName,
       prompt,
@@ -155,6 +177,9 @@ export function ProjectPage() {
         improveMode,
       }
     });
+    
+    notifier.success('Project Saved', 'Project has been saved successfully');
+    logger.info(`Project "${projectName}" saved`, {}, 'Project');
   };
 
   const handleFileSelect = (file: any) => {
@@ -472,15 +497,28 @@ export function ProjectPage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium mb-2">Model</h3>
-                  <select 
-                    className="w-full p-2 border rounded-md"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                  >
-                    <option value="gpt-4">gpt-4</option>
-                    <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                    <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
-                  </select>
+                  <div className="flex gap-2">
+                    <select 
+                      className="w-full p-2 border rounded-md"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                    >
+                      <option value="gpt-4">gpt-4</option>
+                      <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                      <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
+                      <option value="claude-3-opus">claude-3-opus</option>
+                      <option value="claude-3-sonnet">claude-3-sonnet</option>
+                      <option value="local-model">local-model</option>
+                    </select>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => setShowParametersDialog(true)}
+                      title="Model Parameters"
+                    >
+                      <Sliders className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 
                 <div>
@@ -510,6 +548,12 @@ export function ProjectPage() {
           </Tabs>
         </div>
       </div>
+      
+      <ModelParametersDialog
+        open={showParametersDialog}
+        onOpenChange={setShowParametersDialog}
+        model={model}
+      />
     </div>
   );
 }

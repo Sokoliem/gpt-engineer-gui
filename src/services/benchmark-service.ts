@@ -1,5 +1,6 @@
 import { gptEngineerService } from './gpt-engineer-service';
 import { BenchmarkResult } from '@/components/benchmark/benchmark-results';
+import { ModelParameters } from '@/components/settings/model-parameters';
 
 export interface BenchmarkTask {
   id: string;
@@ -17,6 +18,7 @@ export interface BenchmarkOptions {
   apiKey: string;
   taskCount: number;
   timeout?: number;
+  modelParameters?: ModelParameters;
 }
 
 export class BenchmarkService {
@@ -40,6 +42,7 @@ export class BenchmarkService {
           prompt: `Solve the following programming problem:\\n\\n${task.description}`,
           model: options.model,
           apiKey: options.apiKey,
+          modelParameters: options.modelParameters,
         });
         
         const endTime = new Date();

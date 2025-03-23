@@ -3,10 +3,14 @@ import { Button } from '@/components/ui/button';
 import { ImageUpload } from '@/components/vision/image-upload';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Play, Save } from 'lucide-react';
+import { Play, Save, Sliders } from 'lucide-react';
 import { CodeEditor } from '@/components/editor/code-editor';
+import { ModelParametersDialog } from '@/components/settings/model-parameters-dialog';
 import { gptEngineerService } from '@/services/gpt-engineer-service';
 import { useProjectStore } from '@/store/project-store';
+import { useModelParametersStore } from '@/store/model-parameters-store';
+import { logger } from '@/services/logging-service';
+import { notifier } from '@/services/notification-service';
 
 export function VisionPage() {
   const [prompt, setPrompt] = useState('');
@@ -16,7 +20,9 @@ export function VisionPage() {
   const [apiKey, setApiKey] = useState('');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  const [showParametersDialog, setShowParametersDialog] = useState(false);
   const { addProject } = useProjectStore();
+  const { getParameters } = useModelParametersStore();
   
   const handleImagesSelected = (files: File[]) => {
     // Convert files to data URLs for preview
@@ -38,23 +44,30 @@ export function VisionPage() {
   const handleRun = async () => {
     if (!apiKey) {
       setOutput('Error: API key is required');
+      notifier.error('API Key Required', 'Please enter your API key');
       return;
     }
     
     if (!prompt) {
       setOutput('Error: Prompt is required');
+      notifier.error('Prompt Required', 'Please enter a prompt');
       return;
     }
     
     if (images.length === 0) {
       setOutput('Error: At least one image is required');
+      notifier.error('Image Required', 'Please upload at least one image');
       return;
     }
     
     setIsRunning(true);
     setOutput('Running...');
+    logger.info('Running vision project', { model, imageCount: images.length }, 'Vision');
     
     try {
+      // Get model parameters
+      const modelParameters = getParameters(model);
+      
       // In a real implementation, we would upload the images to a server
       // and pass the URLs to the GPT Engineer service
       
@@ -64,15 +77,23 @@ export function VisionPage() {
         apiKey,
         useVision: true,
         imageDirectory: 'temp', // This would be the path to the uploaded images
+        modelParameters,
       });
       
       if (result.success) {
         setOutput(result.output || '');
+        notifier.success('Vision Project Complete', 'Code generation completed successfully');
+        logger.info('Vision code generation completed', {}, 'Vision');
       } else {
         setOutput(`Error: ${result.error}`);
+        notifier.error('Generation Failed', result.error || 'An unknown error occurred');
+        logger.error('Vision code generation failed', { error: result.error }, 'Vision');
       }
     } catch (error) {
-      setOutput(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setOutput(`Error: ${errorMessage}`);
+      notifier.error('Generation Failed', errorMessage);
+      logger.error('Vision code generation failed', { error: errorMessage }, 'Vision');
     } finally {
       setIsRunning(false);
     }
@@ -95,6 +116,9 @@ export function VisionPage() {
         imageFiles: images,
       }
     });
+    
+    notifier.success('Project Saved', 'Vision project has been saved successfully');
+    logger.info(`Vision project "${projectName}" saved`, { imageCount: images.length }, 'Vision');
   };
   
   return (
@@ -143,16 +167,26 @@ export function VisionPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Model</label>
-                <Select value={model} onValueChange={setModel}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4-vision-preview">GPT-4 Vision</SelectItem>
-                    <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
-                    <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={model} onValueChange={setModel}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4-vision-preview">GPT-4 Vision</SelectItem>
+                      <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+                      <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => setShowParametersDialog(true)}
+                    title="Model Parameters"
+                  >
+                    <Sliders className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium">API Key</label>
@@ -180,6 +214,12 @@ export function VisionPage() {
           </div>
         </div>
       </div>
+      
+      <ModelParametersDialog
+        open={showParametersDialog}
+        onOpenChange={setShowParametersDialog}
+        model={model}
+      />
     </div>
   );
 }

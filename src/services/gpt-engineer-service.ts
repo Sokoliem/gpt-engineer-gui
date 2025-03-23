@@ -1,4 +1,5 @@
 import { pythonBridge } from './python-bridge';
+import { ModelParameters } from '@/components/settings/model-parameters';
 
 export interface RunOptions {
   prompt: string;
@@ -8,6 +9,7 @@ export interface RunOptions {
   useVision?: boolean;
   imageDirectory?: string;
   projectPath?: string;
+  modelParameters?: ModelParameters;
 }
 
 export interface RunResult {
@@ -63,6 +65,15 @@ export class GptEngineerService {
         this.errorBuffer += data + '\\n';
       };
       
+      // Add model parameters to the output for demonstration
+      if (options.modelParameters) {
+        this.outputBuffer += `Using model: ${options.model}\\n`;
+        this.outputBuffer += `Temperature: ${options.modelParameters.temperature}\\n`;
+        this.outputBuffer += `Top P: ${options.modelParameters.topP}\\n`;
+        this.outputBuffer += `Max Tokens: ${options.modelParameters.maxTokens}\\n`;
+        this.outputBuffer += `System Message: ${options.modelParameters.systemMessage}\\n\\n`;
+      }
+      
       // Run GPT Engineer
       await pythonBridge.runGptEngineer({
         projectPath: options.projectPath || 'temp',
@@ -72,6 +83,7 @@ export class GptEngineerService {
         improveMode: options.improveMode,
         useVision: options.useVision,
         imageDirectory: options.imageDirectory,
+        modelParameters: options.modelParameters,
       });
       
       // Mock file generation for demonstration
@@ -118,6 +130,8 @@ export class GptEngineerService {
       'gpt-4',
       'gpt-3.5-turbo',
       'gpt-4-vision-preview',
+      'claude-3-opus',
+      'claude-3-sonnet',
       'local-model',
     ];
   }

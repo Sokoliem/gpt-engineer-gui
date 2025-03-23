@@ -2,6 +2,7 @@
  * This service provides a bridge to the Python GPT Engineer codebase.
  * It uses a combination of child_process and IPC to communicate with the Python backend.
  */
+import { ModelParameters } from '@/components/settings/model-parameters';
 
 interface PythonBridgeOptions {
   pythonPath?: string;
@@ -37,6 +38,7 @@ export class PythonBridge {
     improveMode?: boolean;
     useVision?: boolean;
     imageDirectory?: string;
+    modelParameters?: ModelParameters;
   }): Promise<void> {
     // In a browser environment, we would use a backend API
     // This is a mock implementation that simulates the process
@@ -46,6 +48,18 @@ export class PythonBridge {
     this.onStdout(`Model: ${options.model}`);
     this.onStdout(`Improve mode: ${options.improveMode ? 'Yes' : 'No'}`);
     this.onStdout(`Vision: ${options.useVision ? 'Yes' : 'No'}`);
+    
+    if (options.modelParameters) {
+      this.onStdout('\\nModel Parameters:');
+      this.onStdout(`Temperature: ${options.modelParameters.temperature}`);
+      this.onStdout(`Top P: ${options.modelParameters.topP}`);
+      this.onStdout(`Frequency Penalty: ${options.modelParameters.frequencyPenalty}`);
+      this.onStdout(`Presence Penalty: ${options.modelParameters.presencePenalty}`);
+      this.onStdout(`Max Tokens: ${options.modelParameters.maxTokens}`);
+      this.onStdout(`Stop Sequences: ${options.modelParameters.stopSequences.join(', ')}`);
+      this.onStdout(`System Message: ${options.modelParameters.systemMessage}`);
+      this.onStdout(`Streaming: ${options.modelParameters.streaming ? 'Yes' : 'No'}`);
+    }
     
     // Simulate the process running
     await new Promise(resolve => setTimeout(resolve, 1000));
