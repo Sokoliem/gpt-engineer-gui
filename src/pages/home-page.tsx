@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ProjectCard } from '@/components/project/project-card';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Upload, Download } from 'lucide-react';
 import { useProjectStore } from '@/store/project-store';
 import { useNavigate } from 'react-router-dom';
+import { ProjectImportDialog } from '@/components/project/project-import-dialog';
+import { ProjectExportService } from '@/services/project-export-service';
 
 export function HomePage() {
   const { projects, toggleFavorite, deleteProject } = useProjectStore();
   const navigate = useNavigate();
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const handleFavorite = (id: string) => {
     toggleFavorite(id);
@@ -30,15 +33,29 @@ export function HomePage() {
   const handleNewProject = () => {
     navigate('/new');
   };
+  
+  const handleExportAll = () => {
+    ProjectExportService.exportAllProjects(projects);
+  };
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Projects</h1>
-        <Button className="gap-2" onClick={handleNewProject}>
-          <Plus className="h-4 w-4" />
-          New Project
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handleExportAll} disabled={projects.length === 0}>
+            <Download className="h-4 w-4" />
+            Export All
+          </Button>
+          <Button className="gap-2" onClick={handleNewProject}>
+            <Plus className="h-4 w-4" />
+            New Project
+          </Button>
+        </div>
       </div>
 
       {projects.length === 0 ? (
@@ -68,6 +85,11 @@ export function HomePage() {
           ))}
         </div>
       )}
+      
+      <ProjectImportDialog 
+        open={importDialogOpen} 
+        onOpenChange={setImportDialogOpen} 
+      />
     </div>
   );
 }

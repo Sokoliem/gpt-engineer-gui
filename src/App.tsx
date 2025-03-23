@@ -7,6 +7,8 @@ import { ProjectPage } from '@/pages/project-page';
 import { NewProjectPage } from '@/pages/new-project-page';
 import { FavoritesPage } from '@/pages/favorites-page';
 import { RecentPage } from '@/pages/recent-page';
+import { VisionPage } from '@/pages/vision-page';
+import { BenchmarkPage } from '@/pages/benchmark-page';
 import { ToastProvider } from '@/components/ui/toast';
 
 function App() {
@@ -24,6 +26,8 @@ function App() {
                 <Route path="/new" element={<NewProjectPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
                 <Route path="/recent" element={<RecentPage />} />
+                <Route path="/vision" element={<VisionPage />} />
+                <Route path="/benchmark" element={<BenchmarkPage />} />
               </Routes>
             </main>
           </div>

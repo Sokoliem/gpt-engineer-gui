@@ -3,9 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Play, Save, FileCode, Settings, FolderTree } from 'lucide-react';
+import { Play, Save, FileCode, Settings, FolderTree, GitCompare } from 'lucide-react';
 import { CodeEditor } from '@/components/editor/code-editor';
+import { DiffViewer } from '@/components/editor/diff-viewer';
 import { FileExplorer } from '@/components/file/file-explorer';
+import { CodeSearch } from '@/components/editor/code-search';
 import { useParams } from 'react-router-dom';
 import { useProjectStore } from '@/store/project-store';
 import { gptEngineerService } from '@/services/gpt-engineer-service';
@@ -72,14 +74,27 @@ export function ProjectPage() {
   const [model, setModel] = useState(project.settings.model);
   const [apiKey, setApiKey] = useState(project.settings.apiKey || '');
   const [improveMode, setImproveMode] = useState(project.settings.improveMode);
-  const [generatedFiles, setGeneratedFiles] = useState<Array<{ path: string; content: string }>>([]);
+  const [generatedFiles, setGeneratedFiles] = useState<Array<{ path: string; content: string }>>(
+    project.generatedFiles || []
+  );
   const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [originalFiles, setOriginalFiles] = useState<Array<{ path: string; content: string }>>(
+    project.generatedFiles || []
+  );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<number>(0);
+  const [currentSearchResult, setCurrentSearchResult] = useState<number>(0);
   
   const fileTree = buildFileTree(generatedFiles);
   
   const handleRun = async () => {
     setIsRunning(true);
     try {
+      // Store original files for diff view if in improve mode
+      if (improveMode) {
+        setOriginalFiles([...generatedFiles]);
+      }
+      
       const result = await gptEngineerService.runProject({
         prompt,
         model,
@@ -94,7 +109,7 @@ export function ProjectPage() {
         }
         updateProject(project.id, {
           output: result.output,
-          // In a real implementation, we would also save the generated files
+          generatedFiles: result.files,
         });
       } else {
         setOutput(`Error: ${result.error}`);
@@ -110,6 +125,8 @@ export function ProjectPage() {
     updateProject(project.id, {
       name: projectName,
       prompt,
+      generatedFiles,
+      output,
       settings: {
         ...project.settings,
         model,
@@ -121,6 +138,86 @@ export function ProjectPage() {
 
   const handleFileSelect = (file: any) => {
     setSelectedFile(file);
+  };
+  
+  const handleFileRename = (oldPath: string, newPath: string) => {
+    const updatedFiles = generatedFiles.map(file => {
+      if (file.path === oldPath) {
+        return { ...file, path: newPath };
+      }
+      return file;
+    });
+    
+    setGeneratedFiles(updatedFiles);
+    
+    if (selectedFile && selectedFile.path === oldPath) {
+      setSelectedFile({ ...selectedFile, path: newPath });
+    }
+  };
+  
+  const handleFileDelete = (path: string) => {
+    const updatedFiles = generatedFiles.filter(file => file.path !== path);
+    setGeneratedFiles(updatedFiles);
+    
+    if (selectedFile && selectedFile.path === path) {
+      setSelectedFile(null);
+    }
+  };
+  
+  const handleFileDuplicate = (path: string) => {
+    const fileToDuplicate = generatedFiles.find(file => file.path === path);
+    if (!fileToDuplicate) return;
+    
+    const pathParts = path.split('/');
+    const fileName = pathParts.pop() || '';
+    const directory = pathParts.join('/');
+    const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
+    const baseName = fileName.includes('.') ? fileName.split('.').slice(0, -1).join('.') : fileName;
+    
+    const newFileName = `${baseName}-copy${extension ? `.${extension}` : ''}`;
+    const newPath = directory ? `${directory}/${newFileName}` : newFileName;
+    
+    const newFile = {
+      path: newPath,
+      content: fileToDuplicate.content,
+    };
+    
+    setGeneratedFiles([...generatedFiles, newFile]);
+  };
+  
+  const handleFileDownload = (file: any) => {
+    if (!file.content) return;
+    
+    const blob = new Blob([file.content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+  
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    // In a real implementation, we would search the code
+    // For now, we'll just set mock results
+    setSearchResults(5);
+    setCurrentSearchResult(1);
+  };
+  
+  const handleNextSearchResult = () => {
+    setCurrentSearchResult(prev => (prev % searchResults) + 1);
+  };
+  
+  const handlePreviousSearchResult = () => {
+    setCurrentSearchResult(prev => (prev > 1 ? prev - 1 : searchResults));
+  };
+  
+  // Find the original file for the selected file (for diff view)
+  const getOriginalFile = (path: string) => {
+    return originalFiles.find(file => file.path === path)?.content || '';
   };
 
   return (
@@ -172,6 +269,12 @@ export function ProjectPage() {
                   <FolderTree className="h-4 w-4" />
                   Files
                 </TabsTrigger>
+                {improveMode && (
+                  <TabsTrigger value="diff" className="gap-2">
+                    <GitCompare className="h-4 w-4" />
+                    Diff
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="settings" className="gap-2">
                   <Settings className="h-4 w-4" />
                   Settings
@@ -191,19 +294,66 @@ export function ProjectPage() {
             </TabsContent>
             
             <TabsContent value="files" className="flex-1 p-0 overflow-hidden">
-              <div className="flex h-full">
-                <div className="w-1/3 border-r h-full overflow-auto">
-                  <FileExplorer 
-                    files={fileTree} 
-                    onFileSelect={handleFileSelect}
-                    selectedFile={selectedFile}
-                  />
+              <div className="flex h-full flex-col">
+                <CodeSearch
+                  onSearch={handleSearch}
+                  onNext={handleNextSearchResult}
+                  onPrevious={handlePreviousSearchResult}
+                  resultsCount={searchResults}
+                  currentResult={currentSearchResult}
+                />
+                <div className="flex-1 flex">
+                  <div className="w-1/3 border-r h-full overflow-auto">
+                    <FileExplorer 
+                      files={fileTree} 
+                      onFileSelect={handleFileSelect}
+                      selectedFile={selectedFile}
+                      onFileRename={handleFileRename}
+                      onFileDelete={handleFileDelete}
+                      onFileDuplicate={handleFileDuplicate}
+                      onFileDownload={handleFileDownload}
+                    />
+                  </div>
+                  <div className="w-2/3 h-full p-4">
+                    {selectedFile ? (
+                      <div className="h-full border rounded-md">
+                        <CodeEditor
+                          value={selectedFile.content || ''}
+                          language={selectedFile.name.endsWith('.py') ? 'python' : 
+                                   selectedFile.name.endsWith('.js') ? 'javascript' :
+                                   selectedFile.name.endsWith('.ts') ? 'typescript' :
+                                   selectedFile.name.endsWith('.html') ? 'html' :
+                                   selectedFile.name.endsWith('.css') ? 'css' :
+                                   selectedFile.name.endsWith('.json') ? 'json' :
+                                   selectedFile.name.endsWith('.md') ? 'markdown' :
+                                   'plaintext'}
+                          readOnly={true}
+                          height="100%"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        Select a file to view its content
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="w-2/3 h-full p-4">
-                  {selectedFile ? (
-                    <div className="h-full border rounded-md">
-                      <CodeEditor
-                        value={selectedFile.content || ''}
+              </div>
+            </TabsContent>
+            
+            {improveMode && (
+              <TabsContent value="diff" className="flex-1 p-0 overflow-hidden">
+                <div className="flex h-full flex-col">
+                  <div className="border-b p-2 flex items-center justify-between">
+                    <div className="text-sm font-medium">
+                      {selectedFile ? selectedFile.path : 'Select a file to view diff'}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    {selectedFile ? (
+                      <DiffViewer
+                        originalCode={getOriginalFile(selectedFile.path)}
+                        modifiedCode={selectedFile.content || ''}
                         language={selectedFile.name.endsWith('.py') ? 'python' : 
                                  selectedFile.name.endsWith('.js') ? 'javascript' :
                                  selectedFile.name.endsWith('.ts') ? 'typescript' :
@@ -212,18 +362,17 @@ export function ProjectPage() {
                                  selectedFile.name.endsWith('.json') ? 'json' :
                                  selectedFile.name.endsWith('.md') ? 'markdown' :
                                  'plaintext'}
-                        readOnly={true}
                         height="100%"
                       />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">
-                      Select a file to view its content
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        Select a file to view diff
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            )}
             
             <TabsContent value="settings" className="p-4">
               <div className="space-y-4">

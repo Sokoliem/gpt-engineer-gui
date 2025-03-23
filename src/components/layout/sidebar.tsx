@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, History, Star } from 'lucide-react';
+import { Plus, FolderOpen, History, Star, Image, BarChart2 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +56,30 @@ export function Sidebar() {
         >
           <Star className="mr-3 h-4 w-4" />
           Favorites
+        </Link>
+        <Link 
+          to="/vision" 
+          className={cn(
+            "flex items-center px-3 py-2 text-sm rounded-md",
+            location.pathname === '/vision' 
+              ? "bg-primary text-primary-foreground" 
+              : "hover:bg-accent"
+          )}
+        >
+          <Image className="mr-3 h-4 w-4" />
+          Vision
+        </Link>
+        <Link 
+          to="/benchmark" 
+          className={cn(
+            "flex items-center px-3 py-2 text-sm rounded-md",
+            location.pathname === '/benchmark' 
+              ? "bg-primary text-primary-foreground" 
+              : "hover:bg-accent"
+          )}
+        >
+          <BarChart2 className="mr-3 h-4 w-4" />
+          Benchmark
         </Link>
       </nav>
       <div className="p-4 border-t">

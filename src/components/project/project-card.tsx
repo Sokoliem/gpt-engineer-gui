@@ -1,7 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Star, Edit, Play, Trash } from 'lucide-react';
+import { Star, Edit, Play, Trash, Download } from 'lucide-react';
+import { ProjectExportService } from '@/services/project-export-service';
+import { useProjectStore } from '@/store/project-store';
 
 interface ProjectCardProps {
   id: string;
@@ -26,6 +28,15 @@ export function ProjectCard({
   onRun,
   onDelete,
 }: ProjectCardProps) {
+  const { projects } = useProjectStore();
+  
+  const handleExport = () => {
+    const project = projects.find(p => p.id === id);
+    if (project) {
+      ProjectExportService.exportProject(project);
+    }
+  };
+  
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2">
@@ -51,6 +62,9 @@ export function ProjectCard({
         </Button>
         <Button variant="ghost" size="sm" onClick={() => onRun?.(id)}>
           <Play className="h-4 w-4 mr-1" /> Run
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" /> Export
         </Button>
         <Button variant="ghost" size="sm" onClick={() => onDelete?.(id)}>
           <Trash className="h-4 w-4 mr-1" /> Delete
