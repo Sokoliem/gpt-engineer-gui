@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useProjects } from '@/contexts/ProjectContext'
 import { useSettings } from '@/contexts/SettingsContext'
+import FileUpload from '@/components/file-upload'
 
 export default function NewProject() {
   const navigate = useNavigate()
@@ -16,6 +17,19 @@ export default function NewProject() {
   const [description, setDescription] = useState('')
   const [prompt, setPrompt] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+  const [uploadedTextFiles, setUploadedTextFiles] = useState<any[]>([])
+  const [uploadedImageFiles, setUploadedImageFiles] = useState<any[]>([])
+  
+  const handleFilesUploaded = (textFiles: any[], imageFiles: any[]) => {
+    setUploadedTextFiles(textFiles)
+    setUploadedImageFiles(imageFiles)
+    
+    // If text files were uploaded, use their content as part of the prompt
+    if (textFiles.length > 0) {
+      const fileContents = textFiles.map(file => `File: ${file.name}\\n\\n${file.content}\\n\\n`).join('---\\n\\n')
+      setPrompt(prev => prev ? `${prev}\\n\\n---\\n\\nUploaded Files:\\n\\n${fileContents}` : `Uploaded Files:\\n\\n${fileContents}`)
+    }
+  }
   
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,7 +55,12 @@ export default function NewProject() {
     setIsCreating(true)
     
     try {
-      const project = await createProject(projectName, prompt, description)
+      const project = await createProject(
+        projectName, 
+        prompt, 
+        description,
+        uploadedImageFiles
+      )
       
       toast({
         title: "Project created",
@@ -121,22 +140,7 @@ export default function NewProject() {
               </TabsContent>
               
               <TabsContent value="upload">
-                <div className="border-2 border-dashed rounded-md p-8 text-center">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-secondary flex items-center justify-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-medium mb-1">
-                    Drag and drop files here
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Upload images, diagrams, or text files to help describe your project
-                  </p>
-                  <Button variant="outline" size="sm">
-                    Browse Files
-                  </Button>
-                </div>
+                <FileUpload onFilesUploaded={handleFilesUploaded} />
               </TabsContent>
               
               <TabsContent value="template">

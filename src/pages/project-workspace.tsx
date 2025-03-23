@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Play, Save, RefreshCw, Download, FileCode, Settings as SettingsIcon } from 'lucide-react'
+import { Play, Save, RefreshCw, Download, FileCode, Settings as SettingsIcon, Image } from 'lucide-react'
 import CodeEditor from '@/components/code-editor'
 import FileExplorer from '@/components/file-explorer'
 import { useProjects } from '@/contexts/ProjectContext'
@@ -215,6 +215,12 @@ export default function ProjectWorkspace() {
             Code
           </TabsTrigger>
           <TabsTrigger value="prompt">Prompt</TabsTrigger>
+          {currentProject.imageFiles && currentProject.imageFiles.length > 0 && (
+            <TabsTrigger value="images">
+              <Image className="mr-2 h-4 w-4" />
+              Images
+            </TabsTrigger>
+          )}
           <TabsTrigger value="settings">
             <SettingsIcon className="mr-2 h-4 w-4" />
             Settings
@@ -283,6 +289,28 @@ export default function ProjectWorkspace() {
             />
           </div>
         </TabsContent>
+        
+        {currentProject.imageFiles && currentProject.imageFiles.length > 0 && (
+          <TabsContent value="images" className="flex-1 mt-0">
+            <div className="h-full border rounded-md p-4 overflow-auto">
+              <h3 className="text-lg font-medium mb-4">Reference Images</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {currentProject.imageFiles.map((image, index) => (
+                  <div key={index} className="border rounded-md overflow-hidden">
+                    <img 
+                      src={image.dataUrl} 
+                      alt={image.name} 
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="p-2 border-t">
+                      <p className="text-sm font-medium truncate">{image.name}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+        )}
         
         <TabsContent value="settings" className="mt-0">
           <div className="border rounded-md p-4">

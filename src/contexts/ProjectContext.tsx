@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   Project, 
   ProjectSettings, 
+  ProjectFile,
   getProjects, 
   getProject, 
   createProject as createProjectService,
@@ -11,6 +12,7 @@ import {
   improveCode as improveCodeService,
   exportProject as exportProjectService
 } from '@/services/gptEngineerService';
+import { exportProjectAsZip } from '@/services/fileService';
 
 interface ProjectContextType {
   projects: Project[];
@@ -19,7 +21,12 @@ interface ProjectContextType {
   error: string | null;
   loadProjects: () => Promise<void>;
   loadProject: (id: string) => Promise<void>;
-  createProject: (name: string, prompt: string, description?: string) => Promise<Project>;
+  createProject: (
+    name: string, 
+    prompt: string, 
+    description?: string,
+    imageFiles?: { name: string; dataUrl: string }[]
+  ) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   generateCode: (projectId: string, settings: ProjectSettings) => Promise<void>;
@@ -63,11 +70,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createProject = async (name: string, prompt: string, description: string = "") => {
+  const createProject = async (
+    name: string, 
+    prompt: string, 
+    description: string = "",
+    imageFiles: { name: string; dataUrl: string }[] = []
+  ) => {
     setIsLoading(true);
     setError(null);
     try {
-      const newProject = await createProjectService(name, prompt, description);
+      const newProject = await createProjectService(name, prompt, description, imageFiles);
       setProjects(prev => [newProject, ...prev]);
       return newProject;
     } catch (err) {
@@ -161,6 +173,21 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
+      // Get the project
+      const project = projects.find(p => p.id === projectId) || currentProject;
+      
+      if (!project) {
+        throw new Error('Project not found');
+      }
+      
+      if (!project.files || project.files.length === 0) {
+        throw new Error('No files to export');
+      }
+      
+      // Export the project as a ZIP file
+      await exportProjectAsZip(project.name, project.files);
+      
+      // Call the service method for any additional export functionality
       await exportProjectService(projectId);
     } catch (err) {
       setError('Failed to export project');

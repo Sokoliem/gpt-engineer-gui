@@ -15,14 +15,15 @@ The GPT Engineer GUI project aims to create a graphical user interface for the G
 - ✅ Settings management
 - ✅ Dark/light mode support
 - ✅ State management with React Context
+- ✅ File upload functionality
+- ✅ Project export as ZIP
+- ✅ Image reference support
 
 ### In Progress
 - 🔄 Integration with GPT Engineer core functionality
-- 🔄 File upload and handling
-- 🔄 Project export functionality
+- 🔄 Real-time code generation feedback
 
 ### Not Started
-- ❌ Real-time code generation feedback
 - ❌ Integration with version control systems
 - ❌ Plugin system for extensibility
 - ❌ Mobile/tablet responsive design improvements
@@ -36,33 +37,33 @@ The GPT Engineer GUI project aims to create a graphical user interface for the G
    - Add error handling for API failures
    - Create proper authentication flow for API keys
 
-2. **Enhance File Management**
-   - Implement file upload functionality
-   - Add support for image uploads as context for prompts
-   - Create file download capabilities
-
-3. **Improve Project Export**
-   - Implement ZIP export functionality
-   - Add GitHub/GitLab export options
-   - Create project templates export/import
-
-### Medium-term Goals (1-2 Months)
-1. **Add Real-time Feedback**
+2. **Add Real-time Feedback**
    - Implement streaming responses from GPT Engineer
    - Add progress indicators for code generation
    - Create live preview of generated code
 
-2. **Enhance Code Editor**
+3. **Enhance Project Management**
+   - Add project templates
+   - Implement project duplication
+   - Create project archiving functionality
+
+### Medium-term Goals (1-2 Months)
+1. **Enhance Code Editor**
    - Add syntax highlighting for more languages
    - Implement code folding
    - Add search and replace functionality
    - Create code snippets library
 
-3. **Improve User Experience**
+2. **Improve User Experience**
    - Add keyboard shortcuts
    - Implement drag-and-drop for files
    - Create guided tours for new users
    - Add project templates for common use cases
+
+3. **Add Version Control Integration**
+   - Implement GitHub/GitLab integration
+   - Add commit history visualization
+   - Create branch management
 
 ### Long-term Goals (3+ Months)
 1. **Add Collaboration Features**

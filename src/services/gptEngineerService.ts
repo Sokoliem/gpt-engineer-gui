@@ -3,6 +3,7 @@
  */
 
 import { toast } from "@/components/ui/use-toast";
+import { generateCodeWithGPTEngineer, improveCodeWithGPTEngineer } from "./backendService";
 
 export interface Project {
   id: string;
@@ -12,6 +13,7 @@ export interface Project {
   lastModified: Date;
   status: 'completed' | 'in-progress' | 'error';
   files: ProjectFile[];
+  imageFiles?: { name: string; dataUrl: string }[];
 }
 
 export interface ProjectFile {
@@ -76,7 +78,8 @@ export async function getProject(id: string): Promise<Project | null> {
 export async function createProject(
   name: string,
   prompt: string,
-  description: string = ""
+  description: string = "",
+  imageFiles: { name: string; dataUrl: string }[] = []
 ): Promise<Project> {
   try {
     // Generate a unique ID
@@ -91,6 +94,7 @@ export async function createProject(
       lastModified: new Date(),
       status: 'in-progress',
       files: [],
+      imageFiles,
     };
     
     // Store the project
@@ -180,12 +184,19 @@ export async function generateCode(
       lastModified: new Date(),
     };
     
-    // In a real implementation, this would call the GPT Engineer core
-    // For now, we'll simulate the code generation with a timeout
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Call the backend service to generate code
+    const result = await generateCodeWithGPTEngineer({
+      prompt: project.prompt,
+      settings,
+    });
     
-    // Generate mock files based on the project prompt
-    const files = generateMockFiles(project.prompt);
+    // Convert the result to ProjectFile format
+    const files = result.files.map(file => ({
+      name: file.path.split('/').pop() || '',
+      path: file.path,
+      content: file.content,
+      language: getFileLanguage(file.path),
+    }));
     
     // Update the project with the generated files
     const updatedProject = {
@@ -241,21 +252,29 @@ export async function improveCode(
       lastModified: new Date(),
     };
     
-    // In a real implementation, this would call the GPT Engineer core
-    // For now, we'll simulate the code improvement with a timeout
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Call the backend service to improve code
+    const result = await improveCodeWithGPTEngineer({
+      prompt,
+      files: project.files.map(file => ({
+        path: file.path,
+        content: file.content,
+      })),
+      settings,
+    });
     
-    // Update some of the existing files to simulate improvement
-    const improvedFiles = project.files.map(file => ({
-      ...file,
-      content: file.content + `\\n\\n// Improved based on prompt: ${prompt}\\n`,
+    // Convert the result to ProjectFile format
+    const files = result.files.map(file => ({
+      name: file.path.split('/').pop() || '',
+      path: file.path,
+      content: file.content,
+      language: getFileLanguage(file.path),
     }));
     
     // Update the project with the improved files
     const updatedProject = {
       ...project,
       status: 'completed',
-      files: improvedFiles,
+      files,
       lastModified: new Date(),
     };
     
@@ -304,6 +323,80 @@ export async function exportProject(projectId: string): Promise<void> {
     });
     throw error;
   }
+}
+
+/**
+ * Determine file language based on extension
+ */
+function getFileLanguage(filePath: string): string {
+  const extension = filePath.split('.').pop()?.toLowerCase() || '';
+  
+  const languageMap: Record<string, string> = {
+    // JavaScript and TypeScript
+    'js': 'javascript',
+    'jsx': 'javascript',
+    'ts': 'typescript',
+    'tsx': 'typescript',
+    
+    // Web
+    'html': 'html',
+    'css': 'css',
+    'scss': 'scss',
+    'less': 'less',
+    'json': 'json',
+    
+    // Python
+    'py': 'python',
+    
+    // Java
+    'java': 'java',
+    
+    // C/C++
+    'c': 'c',
+    'cpp': 'cpp',
+    'h': 'cpp',
+    'hpp': 'cpp',
+    
+    // C#
+    'cs': 'csharp',
+    
+    // Ruby
+    'rb': 'ruby',
+    
+    // PHP
+    'php': 'php',
+    
+    // Go
+    'go': 'go',
+    
+    // Rust
+    'rs': 'rust',
+    
+    // Swift
+    'swift': 'swift',
+    
+    // Kotlin
+    'kt': 'kotlin',
+    
+    // Shell
+    'sh': 'shell',
+    'bash': 'shell',
+    
+    // Markdown
+    'md': 'markdown',
+    
+    // YAML
+    'yml': 'yaml',
+    'yaml': 'yaml',
+    
+    // XML
+    'xml': 'xml',
+    
+    // SQL
+    'sql': 'sql',
+  };
+  
+  return languageMap[extension] || 'plaintext';
 }
 
 /**
@@ -845,7 +938,7 @@ root.render(
         content: `body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans','Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
