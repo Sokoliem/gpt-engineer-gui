@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Play, Save, FileCode, Settings, FolderTree, GitCompare } from 'lucide-react';
+import { Play, Save, FileCode, Settings, FolderTree, GitCompare, BookTemplate, Clock } from 'lucide-react';
 import { CodeEditor } from '@/components/editor/code-editor';
 import { DiffViewer } from '@/components/editor/diff-viewer';
 import { FileExplorer } from '@/components/file/file-explorer';
 import { CodeSearch } from '@/components/editor/code-search';
+import { PromptTemplates } from '@/components/prompt/prompt-templates';
+import { PromptHistory } from '@/components/prompt/prompt-history';
 import { useParams } from 'react-router-dom';
 import { useProjectStore } from '@/store/project-store';
+import { usePromptStore } from '@/store/prompt-store';
 import { gptEngineerService } from '@/services/gpt-engineer-service';
 
 // Helper function to convert flat file list to tree structure
@@ -53,6 +56,7 @@ function buildFileTree(files: Array<{ path: string; content: string }>) {
 export function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const { projects, updateProject } = useProjectStore();
+  const { templates, history, addTemplate, updateTemplate, deleteTemplate, addHistoryEntry } = usePromptStore();
   
   const project = projects.find(p => p.id === id) || {
     id: 'new',
@@ -84,8 +88,20 @@ export function ProjectPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<number>(0);
   const [currentSearchResult, setCurrentSearchResult] = useState<number>(0);
+  const [promptTab, setPromptTab] = useState<'editor' | 'templates' | 'history'>('editor');
   
   const fileTree = buildFileTree(generatedFiles);
+  
+  // Add to history when the project is loaded
+  useEffect(() => {
+    if (project.prompt) {
+      addHistoryEntry({
+        content: project.prompt,
+        projectId: project.id,
+        projectName: project.name,
+      });
+    }
+  }, [project.id]);
   
   const handleRun = async () => {
     setIsRunning(true);
@@ -94,6 +110,13 @@ export function ProjectPage() {
       if (improveMode) {
         setOriginalFiles([...generatedFiles]);
       }
+      
+      // Add to history
+      addHistoryEntry({
+        content: prompt,
+        projectId: project.id,
+        projectName: projectName,
+      });
       
       const result = await gptEngineerService.runProject({
         prompt,
@@ -119,9 +142,7 @@ export function ProjectPage() {
     } finally {
       setIsRunning(false);
     }
-  };
-  
-  const handleSave = () => {
+  };const handleSave = () => {
     updateProject(project.id, {
       name: projectName,
       prompt,
@@ -219,6 +240,24 @@ export function ProjectPage() {
   const getOriginalFile = (path: string) => {
     return originalFiles.find(file => file.path === path)?.content || '';
   };
+  
+  const handleSelectTemplate = (template: any) => {
+    setPrompt(template.content);
+    setPromptTab('editor');
+  };
+  
+  const handleSaveTemplate = (template: any) => {
+    if (template.id && templates.some(t => t.id === template.id)) {
+      updateTemplate(template);
+    } else {
+      addTemplate(template);
+    }
+  };
+  
+  const handleSelectHistoryPrompt = (content: string) => {
+    setPrompt(content);
+    setPromptTab('editor');
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -247,14 +286,69 @@ export function ProjectPage() {
       </div>
       
       <div className="flex-1 flex">
-        <div className="w-1/2 border-r p-4 flex flex-col">
-          <h2 className="text-lg font-semibold mb-2">Prompt</h2>
-          <Textarea
-            placeholder="Describe what you want to build..."
-            className="flex-1 resize-none"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
+        <div className="w-1/2 border-r flex flex-col">
+          <div className="border-b px-4">
+            <TabsList className="mt-2">
+              <TabsTrigger 
+                value="editor" 
+                className="gap-2"
+                onClick={() => setPromptTab('editor')}
+                data-state={promptTab === 'editor' ? 'active' : ''}
+              >
+                <FileCode className="h-4 w-4" />
+                Editor
+              </TabsTrigger>
+              <TabsTrigger 
+                value="templates" 
+                className="gap-2"
+                onClick={() => setPromptTab('templates')}
+                data-state={promptTab === 'templates' ? 'active' : ''}
+              >
+                <BookTemplate className="h-4 w-4" />
+                Templates
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history" 
+                className="gap-2"
+                onClick={() => setPromptTab('history')}
+                data-state={promptTab === 'history' ? 'active' : ''}
+              >
+                <Clock className="h-4 w-4" />
+                History
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <div className="flex-1 p-4 overflow-auto">
+            {promptTab === 'editor' && (
+              <div className="h-full flex flex-col">
+                <h2 className="text-lg font-semibold mb-2">Prompt</h2>
+                <Textarea
+                  placeholder="Describe what you want to build..."
+                  className="flex-1 resize-none"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
+              </div>
+            )}
+            
+            {promptTab === 'templates' && (
+              <PromptTemplates
+                templates={templates}
+                onSelectTemplate={handleSelectTemplate}
+                onSaveTemplate={handleSaveTemplate}
+                onDeleteTemplate={deleteTemplate}
+              />
+            )}
+            
+            {promptTab === 'history' && (
+              <PromptHistory
+                history={history}
+                onSelectPrompt={handleSelectHistoryPrompt}
+                onClearHistory={() => {}}
+              />
+            )}
+          </div>
         </div>
         
         <div className="w-1/2 flex flex-col">

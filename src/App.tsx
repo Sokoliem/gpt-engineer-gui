@@ -9,9 +9,16 @@ import { FavoritesPage } from '@/pages/favorites-page';
 import { RecentPage } from '@/pages/recent-page';
 import { VisionPage } from '@/pages/vision-page';
 import { BenchmarkPage } from '@/pages/benchmark-page';
+import { SettingsPage } from '@/pages/settings-page';
+import { LogsPage } from '@/pages/logs-page';
 import { ToastProvider } from '@/components/ui/toast';
+import { Notifications } from '@/components/ui/notifications';
+import { WelcomeScreen } from '@/components/onboarding/welcome-screen';
+import { useOnboarding } from '@/hooks/use-onboarding';
 
 function App() {
+  const { showWelcome, setShowWelcome, completeOnboarding } = useOnboarding();
+
   return (
     <Router>
       <ToastProvider>
@@ -28,9 +35,17 @@ function App() {
                 <Route path="/recent" element={<RecentPage />} />
                 <Route path="/vision" element={<VisionPage />} />
                 <Route path="/benchmark" element={<BenchmarkPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/logs" element={<LogsPage />} />
               </Routes>
             </main>
           </div>
+          <Notifications />
+          <WelcomeScreen
+            open={showWelcome}
+            onClose={() => setShowWelcome(false)}
+            onComplete={(apiKey) => completeOnboarding(apiKey)}
+          />
         </div>
       </ToastProvider>
     </Router>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, History, Star, Image, BarChart2 } from 'lucide-react';
+import { Plus, FolderOpen, History, Star, Image, BarChart2, Settings, FileText } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -81,9 +81,33 @@ export function Sidebar() {
           <BarChart2 className="mr-3 h-4 w-4" />
           Benchmark
         </Link>
+        <Link 
+          to="/logs" 
+          className={cn(
+            "flex items-center px-3 py-2 text-sm rounded-md",
+            location.pathname === '/logs' 
+              ? "bg-primary text-primary-foreground" 
+              : "hover:bg-accent"
+          )}
+        >
+          <FileText className="mr-3 h-4 w-4" />
+          Logs
+        </Link>
       </nav>
       <div className="p-4 border-t">
-        <div className="text-xs text-muted-foreground">
+        <Link 
+          to="/settings" 
+          className={cn(
+            "flex items-center px-3 py-2 text-sm rounded-md",
+            location.pathname === '/settings' 
+              ? "bg-primary text-primary-foreground" 
+              : "hover:bg-accent"
+          )}
+        >
+          <Settings className="mr-3 h-4 w-4" />
+          Settings
+        </Link>
+        <div className="text-xs text-muted-foreground mt-4">
           <p>GPT Engineer v0.1.0</p>
           <p className="mt-1">© 2023 GPT Engineer</p>
         </div>
