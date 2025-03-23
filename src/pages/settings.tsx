@@ -1,18 +1,14 @@
-import { useState } from 'react'
+import { useSettings } from '@/contexts/SettingsContext'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function Settings() {
+  const { settings, updateSettings, resetSettings } = useSettings()
   const { toast } = useToast()
-  const [apiKey, setApiKey] = useState('')
-  const [model, setModel] = useState('gpt-4')
-  const [useCustomPreprompts, setUseCustomPreprompts] = useState(false)
-  const [prepromptPath, setPrepromptPath] = useState('')
   
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // In a real app, this would save to localStorage or an API
     toast({
       title: "Settings saved",
       description: "Your settings have been saved successfully",
@@ -21,7 +17,21 @@ export default function Settings() {
   
   return (
     <div className="container mx-auto max-w-3xl">
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            resetSettings()
+            toast({
+              title: "Settings reset",
+              description: "Your settings have been reset to defaults",
+            })
+          }}
+        >
+          Reset to Defaults
+        </Button>
+      </div>
       
       <form onSubmit={handleSaveSettings} className="space-y-8">
         <div className="space-y-6">
@@ -35,8 +45,8 @@ export default function Settings() {
                 <input
                   id="api-key"
                   type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  value={settings.apiKey}
+                  onChange={(e) => updateSettings({ apiKey: e.target.value })}
                   className="w-full px-3 py-2 border rounded-md bg-background"
                   placeholder="sk-..."
                 />
@@ -51,8 +61,8 @@ export default function Settings() {
                 </label>
                 <select
                   id="model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  value={settings.defaultModel}
+                  onChange={(e) => updateSettings({ defaultModel: e.target.value })}
                   className="w-full px-3 py-2 border rounded-md bg-background"
                 >
                   <option value="gpt-4">GPT-4</option>
@@ -70,8 +80,8 @@ export default function Settings() {
                 <input
                   id="use-custom-preprompts"
                   type="checkbox"
-                  checked={useCustomPreprompts}
-                  onChange={(e) => setUseCustomPreprompts(e.target.checked)}
+                  checked={settings.useCustomPreprompts}
+                  onChange={(e) => updateSettings({ useCustomPreprompts: e.target.checked })}
                   className="mr-2"
                 />
                 <label htmlFor="use-custom-preprompts" className="text-sm font-medium">
@@ -79,7 +89,7 @@ export default function Settings() {
                 </label>
               </div>
               
-              {useCustomPreprompts && (
+              {settings.useCustomPreprompts && (
                 <div>
                   <label htmlFor="preprompt-path" className="block text-sm font-medium mb-1">
                     Custom Preprompt Path
@@ -87,8 +97,8 @@ export default function Settings() {
                   <input
                     id="preprompt-path"
                     type="text"
-                    value={prepromptPath}
-                    onChange={(e) => setPrepromptPath(e.target.value)}
+                    value={settings.prepromptPath}
+                    onChange={(e) => updateSettings({ prepromptPath: e.target.value })}
                     className="w-full px-3 py-2 border rounded-md bg-background"
                     placeholder="/path/to/preprompts"
                   />
@@ -102,7 +112,8 @@ export default function Settings() {
                 <select
                   id="theme"
                   className="w-full px-3 py-2 border rounded-md bg-background"
-                  defaultValue="system"
+                  value={settings.theme}
+                  onChange={(e) => updateSettings({ theme: e.target.value as 'light' | 'dark' | 'system' })}
                 >
                   <option value="light">Light</option>
                   <option value="dark">Dark</option>
@@ -122,7 +133,8 @@ export default function Settings() {
                 <select
                   id="log-level"
                   className="w-full px-3 py-2 border rounded-md bg-background"
-                  defaultValue="info"
+                  value={settings.logLevel}
+                  onChange={(e) => updateSettings({ logLevel: e.target.value as 'debug' | 'info' | 'warning' | 'error' })}
                 >
                   <option value="debug">Debug</option>
                   <option value="info">Info</option>
@@ -135,7 +147,8 @@ export default function Settings() {
                 <input
                   id="telemetry"
                   type="checkbox"
-                  defaultChecked={true}
+                  checked={settings.allowTelemetry}
+                  onChange={(e) => updateSettings({ allowTelemetry: e.target.checked })}
                   className="mr-2"
                 />
                 <label htmlFor="telemetry" className="text-sm font-medium">

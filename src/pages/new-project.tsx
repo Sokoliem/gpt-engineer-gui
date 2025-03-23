@@ -3,11 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useProjects } from '@/contexts/ProjectContext'
+import { useSettings } from '@/contexts/SettingsContext'
 
 export default function NewProject() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { createProject } = useProjects()
+  const { settings } = useSettings()
+  
   const [projectName, setProjectName] = useState('')
+  const [description, setDescription] = useState('')
   const [prompt, setPrompt] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   
@@ -35,12 +41,7 @@ export default function NewProject() {
     setIsCreating(true)
     
     try {
-      // In a real app, this would call an API to create the project
-      // Simulating API call with timeout
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Generate a random project ID
-      const projectId = `project-${Date.now()}`
+      const project = await createProject(projectName, prompt, description)
       
       toast({
         title: "Project created",
@@ -48,14 +49,13 @@ export default function NewProject() {
       })
       
       // Navigate to the project workspace
-      navigate(`/project/${projectId}`)
+      navigate(`/project/${project.id}`)
     } catch (error) {
       toast({
         title: "Error creating project",
         description: "There was an error creating your project. Please try again.",
         variant: "destructive",
       })
-    } finally {
       setIsCreating(false)
     }
   }
@@ -78,6 +78,20 @@ export default function NewProject() {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="My Awesome Project"
               required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="project-description" className="block text-sm font-medium mb-1">
+              Project Description (Optional)
+            </label>
+            <input
+              id="project-description"
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md bg-background"
+              placeholder="A brief description of your project"
             />
           </div>
           
@@ -128,7 +142,13 @@ export default function NewProject() {
               <TabsContent value="template">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {['Web App', 'Mobile App', 'API', 'CLI Tool', 'Game', 'Data Analysis'].map((template) => (
-                    <div key={template} className="border rounded-md p-4 cursor-pointer hover:border-primary">
+                    <div 
+                      key={template} 
+                      className="border rounded-md p-4 cursor-pointer hover:border-primary"
+                      onClick={() => {
+                        setPrompt(`Build a ${template.toLowerCase()} with the following features:\\n- Feature 1\\n- Feature 2\\n- Feature 3`);
+                      }}
+                    >
                       <h3 className="font-medium">{template}</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         Start with a {template.toLowerCase()} template

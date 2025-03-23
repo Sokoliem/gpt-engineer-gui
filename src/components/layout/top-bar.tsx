@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
 import { Moon, Sun, User } from 'lucide-react'
+import { useSettings } from '@/contexts/SettingsContext'
 
 export default function TopBar() {
   const { theme, setTheme } = useTheme()
+  const { settings } = useSettings()
   
   return (
     <div className="h-14 border-b border-border px-4 flex items-center justify-between">

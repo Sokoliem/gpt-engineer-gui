@@ -1,51 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Plus, FolderOpen, Clock, ArrowUpRight } from 'lucide-react'
-
-type Project = {
-  id: string
-  name: string
-  description: string
-  lastModified: Date
-  status: 'completed' | 'in-progress'
-}
+import { Plus, FolderOpen, Clock, ArrowUpRight, Trash2 } from 'lucide-react'
+import { useProjects } from '@/contexts/ProjectContext'
+import { useToast } from '@/components/ui/use-toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function Dashboard() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { projects, isLoading, error, loadProjects, deleteProject } = useProjects()
+  const { toast } = useToast()
   
   useEffect(() => {
-    // Simulate loading projects
-    const timer = setTimeout(() => {
-      setProjects([
-        {
-          id: 'project-1',
-          name: 'Todo App',
-          description: 'A simple todo application with React',
-          lastModified: new Date(2023, 11, 15),
-          status: 'completed'
-        },
-        {
-          id: 'project-2',
-          name: 'Weather Dashboard',
-          description: 'Weather forecast application using OpenWeather API',
-          lastModified: new Date(2023, 11, 10),
-          status: 'completed'
-        },
-        {
-          id: 'project-3',
-          name: 'Blog API',
-          description: 'RESTful API for a blog with authentication',
-          lastModified: new Date(2023, 11, 5),
-          status: 'in-progress'
-        },
-      ])
-      setIsLoading(false)
-    }, 1000)
-    
-    return () => clearTimeout(timer)
-  }, [])
+    loadProjects()
+  }, [loadProjects])
+  
+  const handleDeleteProject = async (id: string) => {
+    try {
+      await deleteProject(id)
+      toast({
+        title: "Project deleted",
+        description: "The project has been deleted successfully",
+      })
+    } catch (error) {
+      console.error("Error deleting project:", error)
+    }
+  }
   
   return (
     <div className="container mx-auto max-w-6xl">
@@ -58,6 +47,13 @@ export default function Dashboard() {
           </Button>
         </Link>
       </div>
+      
+      {error && (
+        <div className="bg-destructive/15 text-destructive p-4 rounded-md mb-6">
+          <p className="font-medium">Error loading projects</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
       
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
@@ -82,38 +78,70 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map(project => (
-                <Link 
-                  key={project.id} 
-                  to={`/project/${project.id}`}
-                  className="block group"
-                >
-                  <div className="border rounded-lg p-6 h-full hover:border-primary transition-colors">
-                    <div className="flex items-start justify-between">
-                      <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
-                        {project.name}
-                      </h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        project.status === 'completed' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      }`}>
-                        {project.status === 'completed' ? 'Completed' : 'In Progress'}
-                      </span>
+                <div key={project.id} className="group relative">
+                  <Link to={`/project/${project.id}`} className="block">
+                    <div className="border rounded-lg p-6 h-full hover:border-primary transition-colors">
+                      <div className="flex items-start justify-between">
+                        <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
+                          {project.name}
+                        </h3>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          project.status === 'completed' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                            : project.status === 'error'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                        }`}>
+                          {project.status === 'completed' ? 'Completed' : 
+                           project.status === 'error' ? 'Error' : 'In Progress'}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-muted-foreground line-clamp-2">
+                        {project.description || "No description provided"}
+                      </p>
+                      <div className="mt-4 flex items-center text-sm text-muted-foreground">
+                        <Clock className="mr-1 h-4 w-4" />
+                        Last modified {new Date(project.lastModified).toLocaleDateString()}
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <span className="text-sm font-medium text-primary flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          Open Project <ArrowUpRight className="ml-1 h-4 w-4" />
+                        </span>
+                      </div>
                     </div>
-                    <p className="mt-2 text-muted-foreground line-clamp-2">
-                      {project.description}
-                    </p>
-                    <div className="mt-4 flex items-center text-sm text-muted-foreground">
-                      <Clock className="mr-1 h-4 w-4" />
-                      Last modified {project.lastModified.toLocaleDateString()}
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <span className="text-sm font-medium text-primary flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        Open Project <ArrowUpRight className="ml-1 h-4 w-4" />
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+                  </Link>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete project?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the
+                          project "{project.name}" and all of its files.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => handleDeleteProject(project.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               ))}
               
               <Link to="/new" className="block group">
